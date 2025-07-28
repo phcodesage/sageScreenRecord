@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Sage Screen Recorder</title>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>🎥 Sage Screen Recorder</h1>
+      
+      <div class="controls">
+        <button id="videoSelectBtn" class="btn btn-primary">Choose a Video Source</button>
+        <button id="startBtn" class="btn btn-success" disabled>Start Recording</button>
+        <button id="stopBtn" class="btn btn-danger" disabled>Stop Recording</button>
+      </div>
+      
+      <div class="preview-container">
+        <video id="videoElement" autoplay muted></video>
+      </div>
+      
+      <div class="status">
+        <p id="statusText">Select a video source to begin</p>
+      </div>
+    </div>
+    
+    <script src="renderer.js"></script>
+  </body>
+</html>
