@@ -116,10 +116,19 @@ function startRecording() {
   try {
     recordedChunks = [];
     
-    // Create media recorder
-    mediaRecorder = new MediaRecorder(currentStream, {
-      mimeType: 'video/webm; codecs=vp9'
-    });
+    // Create media recorder with fallback options
+    let options;
+    if (MediaRecorder.isTypeSupported('video/webm; codecs=vp9,opus')) {
+      options = { mimeType: 'video/webm; codecs=vp9,opus' };
+    } else if (MediaRecorder.isTypeSupported('video/webm; codecs=vp8,opus')) {
+      options = { mimeType: 'video/webm; codecs=vp8,opus' };
+    } else if (MediaRecorder.isTypeSupported('video/webm')) {
+      options = { mimeType: 'video/webm' };
+    } else {
+      options = {}; // Use default
+    }
+    
+    mediaRecorder = new MediaRecorder(currentStream, options);
     
     // Handle data available event
     mediaRecorder.ondataavailable = (event) => {
@@ -162,8 +171,9 @@ function stopRecording() {
 // Handle recording stop
 async function handleStop() {
   try {
+    // Create blob with the recorded format
     const blob = new Blob(recordedChunks, {
-      type: 'video/webm; codecs=vp9'
+      type: recordedChunks[0]?.type || 'video/webm'
     });
     
     // Convert blob to array buffer

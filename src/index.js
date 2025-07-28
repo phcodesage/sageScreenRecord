@@ -1,6 +1,11 @@
 const { app, BrowserWindow, ipcMain, desktopCapturer, dialog } = require('electron');
 const path = require('node:path');
 const fs = require('fs');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegStatic = require('ffmpeg-static');
+
+// Configure ffmpeg to use the static binary
+ffmpeg.setFfmpegPath(ffmpegStatic);
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -47,16 +52,53 @@ const createWindow = () => {
     try {
       const { filePath } = await dialog.showSaveDialog(mainWindow, {
         buttonLabel: 'Save Recording',
-        defaultPath: `screen-recording-${Date.now()}.webm`,
+        defaultPath: `screen-recording-${Date.now()}.mp4`,
         filters: [
+          { name: 'MP4 Video', extensions: ['mp4'] },
           { name: 'WebM Video', extensions: ['webm'] },
           { name: 'All Files', extensions: ['*'] }
         ]
       });
       
       if (filePath) {
-        fs.writeFileSync(filePath, Buffer.from(buffer));
-        return { success: true, filePath: path.basename(filePath) };
+        // Create temporary WebM file
+        const tempWebmPath = path.join(path.dirname(filePath), `temp-${Date.now()}.webm`);
+        fs.writeFileSync(tempWebmPath, Buffer.from(buffer));
+        
+        // If user wants MP4, convert using FFmpeg
+        if (path.extname(filePath).toLowerCase() === '.mp4') {
+          return new Promise((resolve) => {
+            ffmpeg(tempWebmPath)
+              .output(filePath)
+              .videoCodec('libx264')
+              .audioCodec('aac')
+              .format('mp4')
+              .on('end', () => {
+                // Clean up temp file
+                try {
+                  fs.unlinkSync(tempWebmPath);
+                } catch (e) {
+                  console.warn('Could not delete temp file:', e.message);
+                }
+                resolve({ success: true, filePath: path.basename(filePath) });
+              })
+              .on('error', (err) => {
+                console.error('FFmpeg conversion error:', err);
+                // Clean up temp file
+                try {
+                  fs.unlinkSync(tempWebmPath);
+                } catch (e) {
+                  console.warn('Could not delete temp file:', e.message);
+                }
+                resolve({ success: false, error: `Conversion failed: ${err.message}` });
+              })
+              .run();
+          });
+        } else {
+          // If user wants WebM, just rename the temp file
+          fs.renameSync(tempWebmPath, filePath);
+          return { success: true, filePath: path.basename(filePath) };
+        }
       } else {
         return { success: false, cancelled: true };
       }
